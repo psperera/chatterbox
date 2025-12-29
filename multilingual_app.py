@@ -1,10 +1,23 @@
+import warnings
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*LoRACompatibleLinear.*", category=FutureWarning)
+
 import random
 import numpy as np
 import torch
 from chatterbox.mtl_tts import ChatterboxMultilingualTTS, SUPPORTED_LANGUAGES
 import gradio as gr
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Detect device: MPS (Mac Silicon) > CUDA > CPU
+# Note: For potentially better performance on Apple Silicon, consider using MLX:
+# https://huggingface.co/mlx-community/chatterbox-fp16
+if torch.backends.mps.is_available():
+    DEVICE = "mps"
+    print("🍎 Using Apple Silicon GPU (MPS)")
+elif torch.cuda.is_available():
+    DEVICE = "cuda"
+else:
+    DEVICE = "cpu"
 print(f"🚀 Running on device: {DEVICE}")
 
 # --- Global Model Initialization ---
@@ -161,6 +174,9 @@ def set_seed(seed: int):
     if DEVICE == "cuda":
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+    elif DEVICE == "mps":
+        # MPS doesn't have manual_seed, but we set the CPU seed which affects MPS
+        pass
     random.seed(seed)
     np.random.seed(seed)
     
@@ -314,4 +330,4 @@ with gr.Blocks() as demo:
         outputs=[audio_output],
     )
 
-demo.launch(mcp_server=True)
+demo.launch()
